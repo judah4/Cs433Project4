@@ -5,6 +5,7 @@
 #include <iostream>
 #include <vector>
 #include <mutex>
+#include <condition_variable>
 
 /* the buffer */
 buffer_item buffer[BUFFER_SIZE];
