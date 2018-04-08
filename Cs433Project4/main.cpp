@@ -95,8 +95,11 @@ void producer(unsigned seed) {
 		/* generate a random number */
 		std::unique_lock<std::mutex> lck(mtx);
 		if (n == BUFFER_SIZE) {
-			if (running == false)
+			if (running == false) {
+				//dump all
+				cv.notify_all();
 				return;
+			}
 			full.wait(lck);	//wait until not full
 		}
 
@@ -122,8 +125,11 @@ void consumer(unsigned seed) {
 
 		std::unique_lock<std::mutex> lck(mtx);
 		if (n == 0) {
-			if (running == false)
+			if (running == false) {
+				//dump all
+				full.notify_all();
 				return;
+			}
 			cv.wait(lck);	//wait until not full
 		}
 
@@ -136,7 +142,7 @@ void consumer(unsigned seed) {
 			
 		}
 
-		full.notify_one();
+		full.notify_all();
 	}
 }
 int main(int argc, char *argv[]) { 
