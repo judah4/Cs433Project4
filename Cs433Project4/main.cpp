@@ -94,7 +94,7 @@ void producer(unsigned seed) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 5 + 1));
 		/* generate a random number */
 		std::unique_lock<std::mutex> lck(mtx);
-		if (n == BUFFER_SIZE) {
+		while (n == BUFFER_SIZE) {
 			if (running == false) {
 				//dump all
 				cv.notify_all();
@@ -124,7 +124,7 @@ void consumer(unsigned seed) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 5 + 1));
 
 		std::unique_lock<std::mutex> lck(mtx);
-		if (n == 0) {
+		while (n == 0) {
 			if (running == false) {
 				//dump all
 				full.notify_all();
