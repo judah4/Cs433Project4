@@ -14,7 +14,7 @@ int n, first, last;
 bool running = true;
 
 std::mutex mtx; // mutex for critical section
-std::condition_variable cv;
+std::condition_variable empty; //consumer check
 std::condition_variable full;
 
 /* insert item into buffer
@@ -26,7 +26,7 @@ int insert_item(buffer_item item) {
 	{
 		buffer[last] = item;
 		std::cout << "item "  << item << " inserted by producer" << std::endl;
-		last = (last + 1) % BUFFER_SIZE;
+		last = (last + 1) % BUFFER_SIZE; //loop around
 		n++;
 		//success
 		return 0;
@@ -43,16 +43,17 @@ int remove_item(buffer_item *item) {
 	// remove an object from buffer and placing it in item
 	if (n > 0)
 	{
+
 		item = &buffer[first];
 		std::cout << "item " << *item << " removed by consumer" << std::endl;
-		first = (first + 1) % BUFFER_SIZE;
+		first = (first + 1) % BUFFER_SIZE; //loop around
 		n--;
-		// return 0 if successful, otherwise
 		return 0;
 	}
 	return -1;
 }
 
+//Print that buffer
 void printBuffer()
 {
 	std::cout << "The current content of the buffer is [ ";
@@ -73,6 +74,7 @@ void printBuffer()
 	}
 	else if (last <= first)
 	{
+		//loops around
 		for (int cnt = first; cnt < BUFFER_SIZE; cnt++)
 		{
 			std::cout << buffer[cnt] << " ";
@@ -86,23 +88,26 @@ void printBuffer()
 	std::cout << "]" << std::endl;
 }
 
+//producer thread with rand seed
 void producer(unsigned seed) {
 	buffer_item item;
 	srand(seed);
 
 	while (running) { /* sleep for a random period of time */
 		std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 5 + 1));
-		/* generate a random number */
+		
 		std::unique_lock<std::mutex> lck(mtx);
 		while (n == BUFFER_SIZE) {
+			//buffer checks, waits, etc
 			if (running == false) {
-				//dump all
-				cv.notify_all();
+				//dump all, end condition cleanup
+				empty.notify_all();
 				return;
 			}
 			full.wait(lck);	//wait until not full
 		}
 
+		/* generate a random number */
 		item = rand();
 		if (insert_item(item) == -1)
 		{
@@ -114,9 +119,11 @@ void producer(unsigned seed) {
 			
 		}
 
-		cv.notify_all();
+		empty.notify_all();
 	}
 }
+
+//consumer thread with rand seed
 void consumer(unsigned seed) {
 	buffer_item item;
 	srand(seed);
@@ -125,12 +132,13 @@ void consumer(unsigned seed) {
 
 		std::unique_lock<std::mutex> lck(mtx);
 		while (n == 0) {
+			//buffer checks, waits, etc
 			if (running == false) {
-				//dump all
+				//dump all, end condition cleanup
 				full.notify_all();
 				return;
 			}
-			cv.wait(lck);	//wait until not full
+			empty.wait(lck);	//wait until not full
 		}
 
 		if (remove_item(&item) == -1) {
@@ -145,6 +153,8 @@ void consumer(unsigned seed) {
 		full.notify_all();
 	}
 }
+
+//the main
 int main(int argc, char *argv[]) { 
 
 	std::cout << "Judah Perez, CS 433, Project 4" << std::endl;
@@ -195,9 +205,7 @@ int main(int argc, char *argv[]) {
 
 	running = false;
 
-	/*int readIn = 0;
-	std::cin >> readIn;*/
-
+	/* Clean Up */
 	for (int cnt = 0; cnt < producerNum; cnt++)
 	{
 		producers[cnt].join();
